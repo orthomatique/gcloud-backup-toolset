@@ -6,11 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
-  "author": "",
-  "license": "ISC",
-  "engines": {
-    "node": ">=7"
-  },
+  "author": "Rodrigo Reyes",
+  "license": "Apache 2.0",
   "dependencies": {
     "bluebird": "^3.3.5",
     "gcloud": "^0.32.0",
