@@ -1,0 +1,22 @@
+{
+  "name": "gcloud-backup-toolset",
+  "version": "1.0.0",
+  "description": "A toolset to easely backup and restore crypted backup archives from the google cloud storage service",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "engines": {
+    "node": ">=7"
+  },
+  "dependencies": {
+    "bluebird": "^3.3.5",
+    "gcloud": "^0.32.0",
+    "moment": "^2.13.0",
+    "shelljs": "^0.7.0",
+    "temporary": "0.0.8",
+    "timediff": "^1.1.1"
+  }
+}
