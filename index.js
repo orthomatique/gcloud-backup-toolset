@@ -95,7 +95,7 @@ function restore(configuration) {
 
     return new bluebird.Promise((resolve, reject) => {
 
-        gcloudBuckets.listFiles(bucket)
+        gcloudBuckets.listFiles(bucket, configuration.bucketSubdir)
             .then((files)=>{
                 // sort results by timestamp
                 files = files
