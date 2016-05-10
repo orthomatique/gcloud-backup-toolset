@@ -14,9 +14,9 @@ var fs = require('fs'),
 
 var Report = require("./lib/report");
 
-function doBackup(configuration, name, bodyFunction) {
-    var report = new Report(name);
-    var tmpDir = shelltool.createTemporary();
+function doBackup(configuration) {
+    var reportName = configuration.reportName || "Unnamed";
+    var report = new Report(reportName);
     var timestamp = moment().format("YYYYMMDD-HHmmss");
 
     var storage = gcloud.storage({
@@ -24,60 +24,104 @@ function doBackup(configuration, name, bodyFunction) {
         keyFilename: configuration.gCloudKeyFilename
     });
 
-    return new bluebird.Promise((resolve, reject) => {
-        var bucket = storage.bucket(configuration.gCloudBucket);
+    var currentName = "Unamed";
+    var execArray = [];
 
-        bodyFunction(tmpDir, report);
-
-        var tmpDirContent = fs.readdirSync(tmpDir);
-        console.log("Archiving ", tmpDirContent.length, "entries");
-
-        var BASENAME = `${name}-archive-${timestamp}`;
-
-        var filename = `/tmp/${BASENAME}.tar`;
-
-        shelltool.cd(tmpDir, () => {
-            shelltool.runShell(`tar cvf ${filename} .`, true);
-        });
-        console.log(`Compressing archive ${filename}...`);
-        filename = shelltool.bzip2(filename, true);
-        if (configuration.aesKey) {
-            console.log(`Encrypting ${filename} with aes...`);
-            var uncryptedFilename = filename;
-            filename = shelltool.cryptAES(filename, filename + ".crypted", configuration.aesKey);
-            shell.rm(uncryptedFilename);
+    function addTaskArgument(arg) {
+        switch (typeof arg) {
+            case "string":
+                currentName = arg;
+                break;
+            case "function":
+                if (execArray.length>0 && execArray[execArray.length-1].name !== undefined) {
+                    execArray.push({func:arg}); // skip the name if it's the same than the previous one
+                } else {
+                    execArray.push({
+                        name: currentName,
+                        func: arg
+                    });
+                }
+                break;
+            default:
+                report.addError("Skipping unknown task of type " + typeof arguments[i]);
+                break;
         }
-        shell.rm('-fr', tmpDir);
+    }
 
-        var remoteFilePath = path.basename(filename);
-        if (configuration.bucketSubdir) {
-            remoteFilePath = path.join(configuration.bucketSubdir, remoteFilePath);
+    for (var i=1; i<arguments.length; i++) {
+        if (Array.isArray(arguments[i])) {
+            arguments[i].forEach((arg) => addTaskArgument(arg));
+        } else {
+            addTaskArgument(arguments[i]);
         }
+    }
 
-        console.log("Uploading", filename, "to", remoteFilePath, "...");
-        var localReadStream = fs.createReadStream(filename);
-        var remoteWriteStream = bucket.file(remoteFilePath).createWriteStream();
-        var pipeStream = localReadStream.pipe(remoteWriteStream);
+    var bucket = storage.bucket(configuration.gCloudBucket);
 
-        convertWriteStreamToPromise(pipeStream)
-            .then(()=> {
-                shell.rm(filename);
-                report.log(`Uploaded file ${remoteFilePath}`)
-                report.log(`Backup operation ${name} successful`);
-                resolve(report);
-            })
-            .error(()=>{
-                console.error("!!! Failed to upload to google cloud storage");
-                shell.rm(filename);
-                report.addError(`Backup operation ${name} failed`);
-                reject(report);
-            })
-        ;
+    return bluebird.Promise.each(execArray, function(entry) {
 
-    });
+        var name = entry.name;
+        var tmpDir = shelltool.createTemporary();
+
+        return new bluebird.Promise((resolve, reject) => {
+            report.log("== processing task " + name);
+            try {
+                entry.func(tmpDir, report);
+            } catch(err) {
+                report.addError(err);
+                return resolve(report);
+            }
+
+            var tmpDirContent = fs.readdirSync(tmpDir);
+            console.log("Archiving ", tmpDirContent.length, "entries");
+
+            var BASENAME = `${name}-archive-${timestamp}`;
+
+            var filename = `/tmp/${BASENAME}.tar`;
+
+            shelltool.cd(tmpDir, () => {
+                shelltool.runShell(`tar cvf ${filename} .`, true);
+            });
+            console.log(`Compressing archive ${filename}...`);
+            filename = shelltool.bzip2(filename, true);
+            if (configuration.aesKey) {
+                console.log(`Encrypting ${filename} with aes...`);
+                var uncryptedFilename = filename;
+                filename = shelltool.cryptAES(filename, filename + ".crypted", configuration.aesKey);
+                shell.rm(uncryptedFilename);
+            }
+            shell.rm('-fr', tmpDir);
+
+            var remoteFilePath = path.basename(filename);
+            if (configuration.bucketSubdir) {
+                remoteFilePath = path.join(configuration.bucketSubdir, remoteFilePath);
+            }
+
+            console.log("Uploading", filename, "to", remoteFilePath, "...");
+            var localReadStream = fs.createReadStream(filename);
+            var remoteWriteStream = bucket.file(remoteFilePath).createWriteStream();
+            var pipeStream = localReadStream.pipe(remoteWriteStream);
+
+            convertWriteStreamToPromise(pipeStream)
+                .then(()=> {
+                    var readableSize = shelltool.getHumanReadableFileSize(filename);
+                    report.log(`Uploaded file ${remoteFilePath} (${readableSize})`);
+                    shell.rm(filename);
+                    report.log(`Backup operation ${name} successful`);
+                    resolve(report);
+                })
+                .error(()=>{
+                    console.error("!!! Failed to upload to google cloud storage");
+                    shell.rm(filename);
+                    report.addError(`Backup operation ${name} failed`);
+                    reject(report);
+                })
+            ;
+
+        })
+    }).then(() => report);
+
 }
-
-
 function convertWriteStreamToPromise(stream) {
     return new bluebird.Promise(function (resolve, reject) {
         stream.on("finish", resolve);

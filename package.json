@@ -1,6 +1,6 @@
 {
   "name": "gcloud-backup-toolset",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A toolset to easely backup and restore crypted backup archives from the google cloud storage service",
   "main": "index.js",
   "scripts": {

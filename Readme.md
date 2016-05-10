@@ -1,7 +1,9 @@
 # gcloud-backup-toolset
 
 This package provides a toolset to create backups and store them with the google cloud storage service.
-Note that this is not an application to create backup, it requires some code writing.
+Note that this is not an application to create backups, it's a toolset that requires to develop in javascript the recipe to collect the
+data to backup. It takes care of tarring, compressing, encrypting the data, and uploading it to your google cloud storage
+bucket.
 
 ### Requirements
 
@@ -10,14 +12,18 @@ version of node.
 
 ## Install
 
+From the npm registry
+
+    npm install --save gcloud-backup-toolset
+
 Directly from github
 
     npm install git+https://git@github.com:reyesr/gcloud-backup-toolset.git
 
 ## Creating a backup
 
-This package works by providing a toolset that does most of the work of creating
-a backup. Here is a template backup file
+This package works by providing a toolset that does most of the common work involved in the process
+of creating a backup. Here is a template backup file
 
     var configuration = {
         gCloudProjectId: "your-gcloudId-12345",
@@ -44,8 +50,29 @@ The configuration should contain at least the following keys:
 
 The following keys are optional
 
-- aesKey: a string that contains the AES key
+- reportName: a string to use as report name (default: "unnamed")
+- aesKey: a string that contains the AES key. If no aesKey is provided, the backup is not encrypted.
 - bucketSubdir: a subdirectory in the google cloud bucket where the backup should be store
+
+
+### Calling doBackup()
+
+The function accepts multiple arguments
+
+    doBackup(configuration, taskArgument...)
+
+- configuration is a configuration object
+- Any argument after configuraton should be either
+  * a string: it sets a name for the following task(s)
+  * a function: a function to process the archiving. The doBackup function calls it
+  with two arguments: a temporary folder (the function needs to put every file and folder
+  to backup in it, doBackup then tars and bzip2 it), and a report object for reporting and
+   logging.
+  * If an array if provided, it is processed as a list of string/function
+
+Example
+
+    doBackup(configuration, "my first task", someFunction, "Another task", anotherFunction, thirdFunction);
 
 ## Restoring an archive
 
@@ -68,3 +95,7 @@ in the bucket (or in the subdirectory of the bucket, if specified)
             console.log("!!! Failed:", err);
         });
 
+
+## Reporting
+
+TODO
