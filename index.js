@@ -99,7 +99,7 @@ function doBackup(configuration) {
                 remoteFilePath = path.join(configuration.bucketSubdir, remoteFilePath);
             }
             bucket.upload(filename, function(err,file){
-                console.log("DONE", err, file);
+                console.log("DONE", err);
             });
 
         })
