@@ -4,8 +4,10 @@ var shelltool = require("./lib/shelltools"),
 var shell = require("shelljs"),
     bluebird = require("bluebird"),
     moment = require("moment"),
-    gcloud = require('gcloud'),
     temporary = require("temporary");
+
+var gstorage = require('@google-cloud/storage');
+
 
 var fs = require('fs'),
     path = require("path"),
@@ -19,7 +21,7 @@ function doBackup(configuration) {
     var report = new Report(reportName);
     var timestamp = moment().format("YYYYMMDD-HHmmss");
 
-    var storage = gcloud.storage({
+    var storage = gstorage({
         projectId: configuration.gCloudProjectId,
         keyFilename: configuration.gCloudKeyFilename
     });
@@ -55,7 +57,7 @@ function doBackup(configuration) {
             addTaskArgument(arguments[i]);
         }
     }
-
+    console.log("Using bucket name", configuration.gCloudBucket);
     var bucket = storage.bucket(configuration.gCloudBucket);
 
     return bluebird.Promise.each(execArray, function(entry) {
@@ -96,27 +98,9 @@ function doBackup(configuration) {
             if (configuration.bucketSubdir) {
                 remoteFilePath = path.join(configuration.bucketSubdir, remoteFilePath);
             }
-
-            console.log("Uploading", filename, "to", remoteFilePath, "...");
-            var localReadStream = fs.createReadStream(filename);
-            var remoteWriteStream = bucket.file(remoteFilePath).createWriteStream();
-            var pipeStream = localReadStream.pipe(remoteWriteStream);
-
-            convertWriteStreamToPromise(pipeStream)
-                .then(()=> {
-                    var readableSize = shelltool.getHumanReadableFileSize(filename);
-                    report.log(`Uploaded file ${remoteFilePath} (${readableSize})`);
-                    shell.rm(filename);
-                    report.log(`Backup operation ${name} successful`);
-                    resolve(report);
-                })
-                .error(()=>{
-                    console.error("!!! Failed to upload to google cloud storage");
-                    shell.rm(filename);
-                    report.addError(`Backup operation ${name} failed`);
-                    reject(report);
-                })
-            ;
+            bucket.upload(filename, function(err,file){
+                console.log("DONE", err, file);
+            });
 
         })
     }).then(() => report);
@@ -130,7 +114,7 @@ function convertWriteStreamToPromise(stream) {
 }
 
 function restore(configuration) {
-    var storage = gcloud.storage({
+    var storage = gstorage({
         projectId: configuration.gCloudProjectId,
         keyFilename: configuration.gCloudKeyFilename
     });

@@ -26,7 +26,7 @@ This package works by providing a toolset that does most of the common work invo
 of creating a backup. Here is a template backup file
 
     var configuration = {
-        gCloudProjectId: "your-gcloudId-12345",
+        gCloudProjectId: "your-gcloudId-12345",   // prolly the same as the the json file's project_i
         gCloudKeyFilename: 'yourkeyfile-ab1234567890.json',
         gCloudBucket: "my-bucket-name",
         bucketSubdir: "optional-directory-name",
