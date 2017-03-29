@@ -100,6 +100,7 @@ function doBackup(configuration) {
             }
             bucket.upload(filename, function(err,file){
                 console.log("DONE", err);
+                shell.rm("-f", filename);
             });
 
         })
