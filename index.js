@@ -3,15 +3,13 @@ var shelltool = require("./lib/shelltools"),
 
 var shell = require("shelljs"),
     bluebird = require("bluebird"),
-    moment = require("moment"),
-    temporary = require("temporary");
+    moment = require("moment");
 
-var gstorage = require('@google-cloud/storage');
+var {Storage} = require('@google-cloud/storage');
 
 
 var fs = require('fs'),
-    path = require("path"),
-    url = require("url")
+    path = require("path")
     ;
 
 var Report = require("./lib/report");
@@ -21,7 +19,7 @@ function doBackup(configuration) {
     var report = new Report(reportName);
     var timestamp = moment().format("YYYYMMDD-HHmmss");
 
-    var storage = gstorage({
+    var storage = new Storage({
         projectId: configuration.gCloudProjectId,
         keyFilename: configuration.gCloudKeyFilename
     });
@@ -115,7 +113,7 @@ function convertWriteStreamToPromise(stream) {
 }
 
 function restore(configuration) {
-    var storage = gstorage({
+    var storage = new Storage({
         projectId: configuration.gCloudProjectId,
         keyFilename: configuration.gCloudKeyFilename
     });
